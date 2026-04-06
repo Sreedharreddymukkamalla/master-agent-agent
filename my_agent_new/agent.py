@@ -23,6 +23,16 @@ short_film_story_writer = RemoteA2aAgent(
     agent_card="https://storyteller-475756125529.us-central1.run.app/anime/.well-known/agent.json"
 )
 
+
+short_film_image_generator = RemoteA2aAgent(
+    name="short_film_image_generator",
+    description="""
+        Use this agent when the user needs to:
+        - Generate images for the short film.
+    """,
+    agent_card="https://image-generator-agent-475756125529.us-central1.run.app/anime/.well-known/agent.json"
+)
+
 root_agent = Agent(
     model='gemini-2.5-flash',
     name='master_agent',
