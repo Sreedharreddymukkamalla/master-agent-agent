@@ -4,17 +4,15 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnecti
 
 root_agent = Agent(
     model='gemini-2.5-flash',
-    name='root_agent',
-    description='An expert otaku assistant for discovering anime.',
+    name='master_agent',
+    description='Access to all remote agents and will perform calls to remote based on requirement',
     instruction="""
-        You are an Anime Show Finder. Help users find anime based on 
-        genre, mood, or similar shows they enjoy. 
-        Always provide the Title, a brief synopsis, and where to watch.
+        Access to all remote agents and will perform calls to remote based on requirement
     """,
     tools=[
         McpToolset(
             connection_params=StreamableHTTPConnectionParams(
-                url="https://aeo-mcp-server.amdal-dev.workers.dev/mcp",
+                url="https://example.com/mcp",
             ),
         )
     ],
