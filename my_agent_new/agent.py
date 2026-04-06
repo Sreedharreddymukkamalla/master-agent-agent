@@ -30,5 +30,5 @@ root_agent = Agent(
     instruction="""
         Access to all remote agents and will perform calls to remote based on requirement
     """,
-    sub_agents=[short_film_script_writer]
+    sub_agents=[short_film_script_writer, short_film_story_writer]
 )
