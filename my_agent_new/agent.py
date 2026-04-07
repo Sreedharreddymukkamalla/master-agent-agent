@@ -4,26 +4,23 @@ from google.adk.agents.sequential_agent import SequentialAgent
 from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools import google_search
 
-# ── Remote agents ────────────────────────────────────────────────────────────
-
 short_film_story_writer = RemoteA2aAgent(
     name="short_film_story_writer",
-    description="Crafts a short film story based on the user's idea.",
+    description="Crafts a story. The output will be stored as 'film_story' in the pipeline state.",
     agent_card="https://storyteller-475756125529.us-central1.run.app/anime/.well-known/agent.json"
 )
 
 short_film_script_writer = RemoteA2aAgent(
     name="short_film_script_writer",
-    description="Writes a short film script based on the provided story.",
+    description="Writes a script. It should use the {film_story} found in the state.",
     agent_card="https://short-film-script-writer-475756125529.us-central1.run.app/anime/.well-known/agent.json"
 )
 
 short_film_image_generator = RemoteA2aAgent(
     name="short_film_image_generator",
-    description="Generates images based on the film script.",
+    description="Generates images. It should use the {film_script} found in the state.",
     agent_card="https://image-generator-agent-475756125529.us-central1.run.app/anime/.well-known/agent.json"
 )
-
 # ── Full pipeline (story → script → images) ──────────────────────────────────
 
 film_production_pipeline = SequentialAgent(
@@ -48,33 +45,34 @@ search_agent = Agent(
 
 # ── Root agent ────────────────────────────────────────────────────────────────
 
+# ── Remote agents ────────────────────────────────────────────────────────────
+# We define them without output_key to ensure they deploy.
+# We use the description to tell the pipeline how to pass data.
+
+
+# ── Root agent ────────────────────────────────────────────────────────────────
+
 root_agent = Agent(
     model='gemini-2.5-flash',
     name='master_agent',
     description='Short film production coordinator.',
     instruction="""
-        You are a short film production coordinator. Based on what the user asks,
-        route to the right agent or pipeline:
-
-        - "give me a story / story only / just a story idea"
-            → call short_film_story_writer
-
-        - "write me a script / script only / just a script"
-            → call short_film_script_writer
-
-        - "generate images / only images / just visuals"
-            → call short_film_image_generator
-
-        - "make a short film / full film / story + script + images / everything"
-            → call film_production_pipeline
-
-        - "search / research / find info about..."
-            → call search_agent
-
-        If the user's request is ambiguous, ask them:
-        "Would you like just the story, just the script, just images, or the full film pipeline?"
-
-        Always confirm the film idea/topic before delegating.
+        You are a short film production coordinator. 
+        
+        When a user wants the "full film" or "everything":
+        1. Call the film_production_pipeline.
+        2. IMPORTANT: The pipeline returns a state containing 'film_story', 'film_script', and the images.
+        3. Your final response MUST combine all three. Do not just show the images.
+        
+        Format your response like this:
+        ## Story
+        [Insert story here]
+        ---
+        ## Script
+        [Insert script here]
+        ---
+        ## Visuals
+        [Insert image links/descriptions here]
     """,
     tools=[
         AgentTool(agent=short_film_story_writer),
