@@ -1,90 +1,68 @@
 from google.adk.agents.llm_agent import Agent
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
-from google.adk.agents.sequential_agent import SequentialAgent
-from google.adk.tools.agent_tool import AgentTool
-from google.adk.tools import google_search
+from google.adk.tools.mcp_tool import McpToolset
+from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnectionParams
 
-# ── Remote agents ────────────────────────────────────────────────────────────
+
+# Connect to the separately deployed short film script writer agent
+short_film_script_writer = RemoteA2aAgent(
+    name="short_film_script_writer",
+    description="""
+        Use this agent when the user needs to:
+        - Craft a short film script based on the user's input.
+    """,
+    agent_card="https://short-film-script-writer-475756125529.us-central1.run.app/anime/.well-known/agent.json"
+)
 
 short_film_story_writer = RemoteA2aAgent(
     name="short_film_story_writer",
-    description="Crafts a short film story based on the user's idea.",
-    agent_card="https://storyteller-475756125529.us-central1.run.app/anime/.well-known/agent.json",
-    output_key="film_story"
+    description="""
+        Use this agent when the user needs to:
+        - Craft a short film story based on the story idea.
+    """,
+    agent_card="https://storyteller-475756125529.us-central1.run.app/anime/.well-known/agent.json"
 )
 
-short_film_script_writer = RemoteA2aAgent(
-    name="short_film_script_writer",
-    description="Writes a short film script. Uses {film_story} from state if available, otherwise uses the user's direct input.",
-    agent_card="https://short-film-script-writer-475756125529.us-central1.run.app/anime/.well-known/agent.json",
-    output_key="film_script"
-)
 
 short_film_image_generator = RemoteA2aAgent(
     name="short_film_image_generator",
-    description="Generates images for the short film. Uses {film_script} from state if available, otherwise uses the user's direct input.",
-    agent_card="https://image-generator-agent-475756125529.us-central1.run.app/anime/.well-known/agent.json",
+    description="""
+        Use this agent when the user needs to:
+        - Generate images for the short film.
+    """,
+    agent_card="https://image-generator-agent-475756125529.us-central1.run.app/anime/.well-known/agent.json"
 )
-
-# ── Full pipeline (story → script → images) ──────────────────────────────────
-
-film_production_pipeline = SequentialAgent(
-    name="film_production_pipeline",
-    description="Full short film pipeline: writes story, then script, then generates images. Use when the user wants the complete package.",
-    sub_agents=[
-        short_film_story_writer,
-        short_film_script_writer,
-        short_film_image_generator,
-    ]
-)
-
-# ── Search agent ─────────────────────────────────────────────────────────────
 
 search_agent = Agent(
     model='gemini-2.5-flash',
     name='search_agent',
-    description="Searches the web for references, research, or real-time information.",
-    instruction="Use Google Search to find accurate information. Summarize results clearly.",
-    tools=[google_search],
+    description="""
+        Use this agent when the user needs to:
+        - Search for real-time information on the web
+        - Research topics, trends, or references for the short film
+        - Look up current events or facts
+    """,
+    instruction="You are a web search specialist. Use Google Search to find accurate, up-to-date information and always summarize the results clearly.",
+    tools=[google_search],  # google_search alone in this agent
 )
-
-# ── Root agent ────────────────────────────────────────────────────────────────
 
 root_agent = Agent(
     model='gemini-2.5-flash',
     name='master_agent',
-    description='Short film production coordinator.',
+    description='Orchestrates all agents for short film production and research.',
     instruction="""
-        You are a short film production coordinator. Based on what the user asks,
-        route to the right agent or pipeline:
-
-        - "give me a story / story only / just a story idea"
-            → call short_film_story_writer only
-
-        - "write me a script / script only / just a script"
-            → call short_film_script_writer only
-
-        - "generate images / only images / just visuals"
-            → call short_film_image_generator only
-
-        - "make a short film / full film / story + script + images / everything"
-            → call film_production_pipeline
-              (it will automatically chain: story → script → images)
-
-        - "search / research / find info about..."
-            → call search_agent
-
-        If the user's request is ambiguous, ask them:
-        "Would you like just the story, just the script, just images, or the full film pipeline?"
-
-        Always confirm the film idea/topic before delegating.
+        You have access to specialized agents:
+        - Use search_agent to look up real-world info, references, or research topics
+        - Use short_film_story_writer to craft story ideas
+        - Use short_film_script_writer to write the actual script
+        - Use short_film_image_generator to generate images for the film
+        
+        Delegate tasks to the appropriate agent based on the user's request.
     """,
-    # Wrap each as AgentTool so root can call them individually OR together
-    tools=[
-        AgentTool(agent=short_film_story_writer),
-        AgentTool(agent=short_film_script_writer),
-        AgentTool(agent=short_film_image_generator),
-        AgentTool(agent=film_production_pipeline),
-        AgentTool(agent=search_agent),
+    sub_agents=[    
+        search_agent,             
+        short_film_script_writer,
+        short_film_story_writer,
+        short_film_image_generator,
     ]
 )
